@@ -4,23 +4,27 @@ A Git-backed Introspection recipe: **Flight Sector's travel agent**, which books
 work travel for a company's employees from a Slack DM, through an `aauth`
 **connector**. The booking provider is a native [AAuth](https://github.com/dickhardt/AAuth)
 resource and the employee's company runs the Person Server that speaks for
-them: in policy a booking goes through at once, over policy it waits for their
-manager.
+them. Each trip is an AAuth **mission**: the manager approves it once, budget
+and all; a booking within it goes through at once, and one over what is left
+waits for the manager.
 
-Design: `introspection-cloud/docs/design/connectors-aauth-b2b2c.md` (§12.3 the
-AAuth agent, §18 the `connectors:` recipe block).
+Design: `introspection-cloud/docs/design/connectors-aauth-b2b2c.md` (§12.2 the
+AAuth agent, §12.3 missions, §18 the `connectors:` recipe block, §19 the rails).
 
 ## What this demonstrates
 
 - An agent that acts **on behalf of a person**, never on its own authority.
 - **No credential in the sandbox**: the platform is the Agent Provider. Egress
-  signs each request (RFC 9421) with the session's key and presents the agent
-  token; the provider answers with a resource token, and egress exchanges it at
-  the company's Person Server for an auth token.
-- **The company decides**: Acme's Person Server applies its own policy to the
-  provider-signed quote, and asks the employee's manager when a booking is over
-  it. `pending` is a first-class state, not an error: the agent is told, and
-  the chat resumes when the manager decides.
+  signs each request (RFC 9421) with the session's key and presents the best
+  token it holds; the provider answers with a resource token, and egress
+  exchanges it at the company's Person Server for an auth token.
+- **A trip is a mission**: `propose_trip` proposes the whole trip, with its
+  budget, before anything is booked; `complete_trip` ends it. The mission and
+  its tokens stay in the egress; the agent holds only its `s256`.
+- **The company decides**: Acme's Person Server weighs each booking against
+  what is left of the trip's budget, and asks the manager when it is over.
+  `pending` is a first-class state, not an error: the agent is told, and the
+  chat resumes when the manager decides.
 
 ## The full scope
 
@@ -83,6 +87,11 @@ before the traveller's company is asked
 
 ```cedar
 // policies/travel.cedar
+@id("missionless-booking")
+@reason("propose the trip first: a booking needs the traveller's approved mission")
+forbid (principal, action == Action::"booking.reserve", resource)
+unless { context has mission };
+
 @id("business-by-seniority")
 @reason("business class on the company's account needs the company's seniority, on a leg of six hours or more")
 forbid (principal, action == Action::"booking.reserve", resource)
@@ -103,19 +112,23 @@ booking connector carries. See [`policies/README.md`](policies/README.md).
 
 The tool sends the offer's signed quote, purpose and payer; nothing in it knows
 about AAuth. What happens next is the platform's and the company's
-(`introspection-cloud` `docs/design/connectors-aauth-b2b2c.md` §12.3):
+(`introspection-cloud` `docs/design/connectors-aauth-b2b2c.md` §12.2–§12.3):
 
-1. The egress signs the request (RFC 9421) and presents the session's agent token.
-2. The provider answers `401` with a resource token naming the exact quote.
-3. The egress takes it to the company's Person Server, which applies its own
-   policy: within it, an auth token at once; over it, `202` while it asks the
-   traveller's manager.
-4. When it is decided, the agent is told in the same DM and books again.
+1. `propose_trip` posts the trip to `https://person-server.aauth/mission`; the
+   egress takes it to the company's Person Server, and the manager approves it.
+2. The egress signs each booking (RFC 9421) and presents the mission's person
+   token.
+3. The provider answers `401` with a resource token naming this one booking.
+4. The egress takes it to the Person Server: within the trip's budget, an auth
+   token at once; over what is left, `202` while it asks the manager.
+5. When it is decided, the agent is told in the same DM and books again.
+6. `complete_trip` proposes the trip done; the traveller accepts, and the
+   mission ends.
 
 ## Status
 
 - **Live on the platform branch:** the Agent Provider, egress signing and token
-  exchange, waiting on a `202`, and the policy gate.
+  exchange, AAuth missions, waiting on a `202`, and the policy gate.
 - **Example:** `introspection-js-sdk` `examples/aauth-travel` runs the booking
   provider and Acme's Person Server.
 

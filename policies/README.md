@@ -14,15 +14,19 @@ the traveller's company is asked (introspection-cloud
 There are two outcomes:
 
 - **deny**: the agent gets `403` with the rule's `@reason`, and nothing else is asked.
-- **allow**: the request goes on to the connector's own gate (a mission, or the company's Person Server), which still decides.
+- **allow**: the request goes on to the connector's own gate (the company's Person Server), which still decides.
 
 A permit never replaces a person.
+
+A route can ask for the session's approved AAuth mission as Cedar context
+(`context: [mission]` gives `context.mission = {s256, resources}`).
+`missionless-booking` uses it to refuse any booking outside an approved trip.
 
 The same policy answers differently per person: the principal's `level` comes
 from attributes an org owner sets on the member (`PATCH /v1/members/{id}`,
 `policy_attributes`), and their `company` from entities the booking connector
 carries (`policy_entities`). Policy that is the customer's own, such as
-nightly caps and who approves, stays with the customer's Person Server.
+a trip's budget and who approves, stays with the customer's Person Server.
 
 The platform reads these files at the deployed commit and fails closed: a
 policy set that does not parse or validate denies every governed request. CI
