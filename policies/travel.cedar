@@ -11,6 +11,14 @@ permit (principal, action == Action::"booking.quote", resource);
 @id("reserve")
 permit (principal, action == Action::"booking.reserve", resource);
 
+@id("cancel")
+permit (principal, action == Action::"booking.cancel", resource);
+
+@id("missionless-cancel")
+@reason("a booking is cancelled only under the trip it was booked for")
+forbid (principal, action == Action::"booking.cancel", resource)
+unless { context has mission };
+
 @id("missionless-booking")
 @reason("propose the trip first: a booking needs the traveller's approved mission")
 forbid (principal, action == Action::"booking.reserve", resource)

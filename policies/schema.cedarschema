@@ -50,6 +50,11 @@ entity Booking {
   total_cents?: Long,
 };
 
+// A booking the agent asks the provider to cancel, by its confirmation.
+entity Cancellation {
+  confirmation: String,
+};
+
 // The trip the agent proposes, as its Person Server would see it.
 entity TripProposal {
   description?: String,
@@ -71,5 +76,6 @@ type Mission = { s256: String, resources: Set<String> };
 action "booking.search" appliesTo { principal: [Person], resource: [Search], context: {} };
 action "booking.quote" appliesTo { principal: [Person], resource: [Quote], context: {} };
 action "booking.reserve" appliesTo { principal: [Person], resource: [Booking], context: { mission?: Mission, judgement?: BookingJudgement } };
+action "booking.cancel" appliesTo { principal: [Person], resource: [Cancellation], context: { mission?: Mission } };
 action "mission.propose" appliesTo { principal: [Person], resource: [TripProposal], context: { judgement?: MissionJudgement } };
 action "mission.complete" appliesTo { principal: [Person], resource: [TripCompletion], context: { mission?: Mission } };
