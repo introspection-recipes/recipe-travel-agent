@@ -139,6 +139,42 @@ function result(res) {
   };
 }
 
+// Each offer's signed quote, by offer_id. The model books an offer by its id
+// and never handles the token: a long signature copied by hand can lose a
+// character, and the provider then refuses a quote it no longer recognises.
+// The reserve request still carries the quote, which the egress's rails read.
+const quotes = new Map();
+
+/** Keep the quotes a search or quote answered with, and show the model the offers without them. */
+function keepQuotes(res) {
+  if (res.status !== 200) return res;
+  let body;
+  try {
+    body = JSON.parse(res.text);
+  } catch {
+    return res;
+  }
+  const offers = [...(Array.isArray(body?.offers) ? body.offers : []), ...(body?.offer ? [body.offer] : [])];
+  for (const offer of offers) {
+    if (typeof offer?.offer_id === "string" && typeof offer.quote === "string") {
+      quotes.set(offer.offer_id, offer.quote);
+      delete offer.quote;
+    }
+  }
+  return { ...res, text: JSON.stringify(body) };
+}
+
+const NO_QUOTE = (offerId) => ({
+  content: [
+    {
+      type: "text",
+      text: `No quote for ${offerId} in this session. Search or quote it again (search_offers or quote_flight), then book the offer_id it returns.`,
+    },
+  ],
+  details: { status: 0, reason: "no_quote", offer_id: offerId },
+  isError: true,
+});
+
 export function registerBookingTools(pi) {
   pi.registerTool({
     name: "today",
@@ -190,7 +226,7 @@ export function registerBookingTools(pi) {
     name: "search_offers",
     label: "Search travel",
     description:
-      "Search flights or hotels. Every offer carries a signed `quote`; pass the offer's `offer_id` and `quote` unchanged to book_item.",
+      "Search flights or hotels. Book an offer by passing its `offer_id` to book_item.",
     promptSnippet: "Search flights or hotels for signed, bookable offers.",
     parameters: Type.Object({
       kind: Type.Union([Type.Literal("flight"), Type.Literal("hotel")]),
@@ -204,7 +240,7 @@ export function registerBookingTools(pi) {
     }),
     async execute(_toolCallId, params, signal) {
       if (!BOOKING_API_URL) return NOT_CONFIGURED;
-      return result(await call("/v1/search", params, signal));
+      return result(keepQuotes(await call("/v1/search", params, signal)));
     },
   });
 
@@ -212,7 +248,7 @@ export function registerBookingTools(pi) {
     name: "quote_flight",
     label: "Quote a flight",
     description:
-      "Get a bookable offer for a flight found in a browser search. The booking provider quotes its own fare, which can differ from the price the search showed; the offer carries a signed `quote` to pass unchanged to book_item.",
+      "Get a bookable offer for a flight found in a browser search. The booking provider quotes its own fare, which can differ from the price the search showed; book it by passing its `offer_id` to book_item.",
     promptSnippet: "Quote a flight found in a browser search, for a bookable offer.",
     parameters: Type.Object({
       from: Type.String({ description: "Origin IATA code, e.g. SFO" }),
@@ -224,7 +260,7 @@ export function registerBookingTools(pi) {
     }),
     async execute(_toolCallId, params, signal) {
       if (!BOOKING_API_URL) return NOT_CONFIGURED;
-      return result(await call("/v1/quote", params, signal));
+      return result(keepQuotes(await call("/v1/quote", params, signal)));
     },
   });
 
@@ -239,14 +275,15 @@ export function registerBookingTools(pi) {
       "Book one item per call, and only after the traveller has confirmed it.",
     ],
     parameters: Type.Object({
-      offer_id: Type.String(),
-      quote: Type.String({ description: "The offer's signed quote, unchanged" }),
+      offer_id: Type.String({ description: "The offer_id from search_offers or quote_flight" }),
       purpose: Type.Union([Type.Literal("business"), Type.Literal("personal")]),
       payer: Type.Union([Type.Literal("company"), Type.Literal("traveler")]),
     }),
     async execute(_toolCallId, params, signal) {
       if (!BOOKING_API_URL) return NOT_CONFIGURED;
-      return result(await call("/v1/reserve", params, signal));
+      const quote = quotes.get(params.offer_id);
+      if (!quote) return NO_QUOTE(params.offer_id);
+      return result(await call("/v1/reserve", { ...params, quote }, signal));
     },
   });
 }
