@@ -286,6 +286,24 @@ export function registerBookingTools(pi) {
       return result(await call("/v1/reserve", { ...params, quote }, signal));
     },
   });
+
+  pi.registerTool({
+    name: "cancel_booking",
+    label: "Cancel a booking",
+    description:
+      "Cancel one booking made under this trip, by its confirmation, until the flight departs or the stay begins. Cancelling does not give its cost back to the trip's budget.",
+    promptSnippet: "Cancel a booking the traveller asked to cancel.",
+    promptGuidelines: [
+      "Cancel only a booking the traveller asked you to cancel, and only once it is clear which one.",
+    ],
+    parameters: Type.Object({
+      confirmation: Type.String({ description: "The booking's confirmation, such as FS-5A089BEC" }),
+    }),
+    async execute(_toolCallId, params, signal) {
+      if (!BOOKING_API_URL) return NOT_CONFIGURED;
+      return result(await call("/v1/cancel", params, signal));
+    },
+  });
 }
 
 export default function (pi) {

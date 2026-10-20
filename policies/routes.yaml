@@ -31,6 +31,14 @@ booking:
       claims:
         from: /quote
         attributes: [kind, name, city, flight, from, to, depart, check_in, check_out, nights, cabin, block_minutes, total_cents]
+  - method: POST
+    path: /v1/cancel
+    action: booking.cancel
+    context: [mission]
+    resource:
+      type: Cancellation
+      attribute_map:
+        confirmation: /confirmation
 
 # The trip the agent proposes to the traveller's Person Server, which the
 # egress answers itself: Jev checks it against what the traveller asked for.

@@ -10,6 +10,7 @@ tools:
   - quote_flight
   - propose_trip
   - book_item
+  - cancel_booking
   - complete_trip
   - channels
 mcp:
