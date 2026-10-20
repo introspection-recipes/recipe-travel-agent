@@ -43,6 +43,7 @@
         {
           "id": "browserbase",
           "required": true,
+          "discovery": "defer",
           "tools": {
             "include": [
               "start",
