@@ -1,0 +1,26 @@
+# The travel agent on the platform's scripted model double, so a run is
+# deterministic and costs nothing: each prompt carries a <<SCRIPT {...}>>
+# directive naming the tool calls a real model makes on the request, a booking
+# carrying the offer_id of the quote before it ({"$result": "quote_flight",
+# "path": "offer.offer_id"}). The SDK end-to-end walk's AAuth lane selects it
+# per task with agent_name (introspection-cloud
+# docs/design/sdk-end-to-end-walk-aauth.md).
+name: scripted
+description: The travel agent on the scripted model double, for deterministic tests
+ai:
+  model: introspection/scripted-llm
+  thinking_level: low
+tools:
+  - read
+  - today
+  - search_offers
+  - quote_flight
+  - propose_trip
+  - book_item
+  - cancel_booking
+  - complete_trip
+skills: []
+subagents: []
+system_instructions:
+  mode: append
+  content: ""
