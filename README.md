@@ -1,12 +1,6 @@
 # Travel Agent Recipe
 
-An [Introspection](https://introspection.dev) recipe: **Flight Sector's travel
-agent**, which books work travel for another company's employees. The booking
-provider is a native [AAuth](https://github.com/dickhardt/AAuth) resource, and
-the traveller's company has a Person Server that speaks for them. Each trip is
-an AAuth **mission**: the manager approves it once, budget and all; a booking
-within it goes through at once, and one over what is left waits for the
-manager.
+An AAuth travel agent that books work trips on a person’s behalf: the manager approves each trip’s budget once, and over-budget bookings wait for sign-off.
 
 To run it end to end, with the booking provider and the company's approval
 page, use the [`aauth-travel` example](https://github.com/introspection-org/introspection-js-sdk/tree/main/examples/aauth-travel)
